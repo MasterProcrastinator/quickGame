@@ -8,81 +8,146 @@
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
-    
-    private var label : SKLabelNode?
-    private var spinnyNode : SKShapeNode?
+class GameScene: SKScene, SKPhysicsContactDelegate {
+    //contact mask is binary stuff, 1 2 4 8 16
+    var gameOver = false
+    var winLoseOutlet: SKLabelNode!
+    var label: SKLabelNode!
+    var player: SKSpriteNode!
+    let cam = SKCameraNode()
+    var livesLabel: SKLabelNode!
+    var score = 0
+    var lives = 5
+    var isGrounded = true
+    var rightway = false
+    var leftway = false
     
     override func didMove(to view: SKView) {
         
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
-        }
         
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
+   
+        label = self.childNode(withName: "scoreLabel") as! SKLabelNode
+        winLoseOutlet = self.childNode(withName: "winLoseOutlet") as! SKLabelNode
+        winLoseOutlet.fontSize = 100
+        livesLabel = self.childNode(withName: "lives") as! SKLabelNode
         
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 2.5
+        self.physicsWorld.contactDelegate = self
+        player = self.childNode(withName: "player") as! SKSpriteNode
+        self.camera = cam
+        label.text = "\(score)/20"
+        livesLabel.text = "lives left: \(lives)"
+        winLoseOutlet.text = ""
+        
+    }
+    
+
+    func didBegin(_ contact: SKPhysicsContact) {
+        
+        if (contact.bodyA.node?.name == "player" && contact.bodyB.node?.name == "spike") || (contact.bodyB.node?.name == "player" && contact.bodyA.node?.name == "spike"){
+
+            if(lives == 0){
+                livesLabel.text = "\(lives)"
+                player.physicsBody?.velocity.dx = 0
+                gameOver = true
+                winLoseOutlet.text = "Game Over"
+            }
+            else{
+                lives -= 1
+                let restartAction = SKAction.move(to:CGPoint(x: -640, y: -320), duration: 0)
+                pause()
+                player.run(restartAction)
+                livesLabel.text = "lives left: \(lives)"
+            }
             
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
-        }
-    }
-    
-    
-    func touchDown(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.green
-            self.addChild(n)
-        }
-    }
-    
-    func touchMoved(toPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.blue
-            self.addChild(n)
-        }
-    }
-    
-    func touchUp(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.red
-            self.addChild(n)
-        }
-    }
-    
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
         }
         
-        for t in touches { self.touchDown(atPoint: t.location(in: self)) }
+       
+        
+        if (contact.bodyA.node?.name == "player" && contact.bodyB.node?.name == "coin") || (contact.bodyB.node?.name == "player" && contact.bodyA.node?.name == "coin"){
+            score = score + 1
+            if(score <= 20){
+                label.text = "\(score)/20"
+            }
+            if(score == 20){
+                gameOver = true
+                pause()
+                winLoseOutlet.text = "You Win"
+            }
+            if contact.bodyA.node?.name == "coin"{
+                contact.bodyA.node?.removeFromParent()
+            }
+            if contact.bodyB.node?.name == "coin"{
+                contact.bodyB.node?.removeFromParent()
+            }
+        }
+        
+        if (contact.bodyA.node?.name == "player" && contact.bodyB.node?.name == "ground") || (contact.bodyB.node?.name == "player" && contact.bodyA.node?.name == "ground"){
+            print("isGrounded")
+            isGrounded = true
+            
+            }
+            
+        
+        
+
+        
+        
+        
     }
-    
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
-    }
-    
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
-    }
-    
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
-    }
-    
     
     override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
+        cam.position.x = player.position.x
+        cam.position.y = player.position.y + 100
+        label.position.x = player.position.x + 500
+        label.position.y = player.position.y + 300
+        livesLabel.position.x = player.position.x - 500
+        livesLabel.position.y = player.position.y + 300
+        winLoseOutlet.position.x = player.position.x
+        winLoseOutlet.position.y = player.position.y + 100
+        if (leftway == true && gameOver == false){
+            player.physicsBody?.velocity.dx = -325
+        }
+        
+        if (rightway == true && gameOver == false){
+            player.physicsBody?.velocity.dx = 325
+        }
+
+
+        
+    }
+    
+    
+    func jump(){
+        if(gameOver == false && isGrounded == true){
+            player.physicsBody?.velocity.dy = 600
+            isGrounded = false
+            
+        }
+    }
+    func left(){
+        if(gameOver == false){
+            player.physicsBody?.velocity.dx = -325
+            leftway = true
+            rightway = false
+        }
+    }
+    func pause(){
+        if(gameOver == false){
+            player.physicsBody?.velocity.dx = 0
+            rightway = false
+            leftway = false
+        }
+    }
+    func right(){
+        if(gameOver == false){
+            player.physicsBody?.velocity.dx = 325
+            rightway = true
+            leftway = false
+            
+        }
+    }
+    func respawn(){
+        player.position.x = -640
+        player.position.y = -320
     }
 }
